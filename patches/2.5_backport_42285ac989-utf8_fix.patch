@@ -1,0 +1,21 @@
+commit 42285ac9893f6ce82b44d00061a4ef702ef22cbe
+Author: nicm <nicm>
+Date:   Mon Jul 3 08:08:30 2017 +0000
+
+    Try C.UTF-8 which is also a commonly useful locale on some platforms,
+    from Romain Francoise.
+
+diff --git a/tmux.c b/tmux.c
+index 9c32fa0a27..07aeeaebf4 100644
+--- a/tmux.c
++++ b/tmux.c
+@@ -196,7 +196,8 @@ main(int argc, char **argv)
+ 	int					 opt, flags, keys;
+ 	const struct options_table_entry	*oe;
+ 
+-	if (setlocale(LC_CTYPE, "en_US.UTF-8") == NULL) {
++	if (setlocale(LC_CTYPE, "en_US.UTF-8") == NULL &&
++	    setlocale(LC_CTYPE, "C.UTF-8") == NULL) {
+ 		if (setlocale(LC_CTYPE, "") == NULL)
+ 			errx(1, "invalid LC_ALL, LC_CTYPE or LANG");
+ 		s = nl_langinfo(CODESET);

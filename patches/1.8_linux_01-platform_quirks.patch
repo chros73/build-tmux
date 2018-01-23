@@ -1,0 +1,45 @@
+Description: Build and configuration changes for Debian platforms
+ * Define MAXPATHLEN, PATH_MAX, MAXHOSTNAMELEN, MAX_IOV for Hurd.
+ * Disable libevent's epoll backend on Linux as calling epoll() on
+   /dev/null hangs.
+Author: Karl Ferdinand Ebert <kfebert@gmail.com>
+Author: Romain Francoise <rfrancoise@debian.org>
+Bug-Debian: http://bugs.debian.org/609333
+Bug-Debian: http://bugs.debian.org/631984
+Forwarded: not-needed
+
+--- a/tmux.h
++++ b/tmux.h
+@@ -470,6 +470,22 @@
+ 	char		argv[COMMAND_LENGTH];
+ };
+ 
++#ifndef MAXPATHLEN
++#define MAXPATHLEN 4096
++#endif
++
++#ifndef PATH_MAX
++#define PATH_MAX 4096
++#endif
++
++#ifndef MAXHOSTNAMELEN
++#define MAXHOSTNAMELEN 64
++#endif
++
++#ifndef IOV_MAX
++#define IOV_MAX	1024
++#endif
++
+ struct msg_identify_data {
+ 	char		cwd[MAXPATHLEN];
+ 
+--- a/osdep-linux.c
++++ b/osdep-linux.c
+@@ -92,6 +92,6 @@
+ 	 * poll or select, causing hangs.
+ 	 * 
+ 	 */
+-	/* setenv("EVENT_NOEPOLL", "1", 1); */
++	setenv("EVENT_NOEPOLL", "1", 1);
+ 	return (event_init());
+ }

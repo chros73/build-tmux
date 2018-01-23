@@ -1,0 +1,32 @@
+commit a05c27a7e1c4d43709817d6746a510f16c960b4b
+Author: nicm <nicm>
+Date:   Thu Oct 22 11:19:31 2015 +0000
+
+    Unzoom before -LRUD, reported by Andy Weidenbaum.
+
+--- a/cmd-select-pane.c
++++ b/cmd-select-pane.c
+@@ -120,14 +120,19 @@
+ 		return (CMD_RETURN_NORMAL);
+ 	}
+ 
+-	if (args_has(self->args, 'L'))
++	if (args_has(self->args, 'L')) {
++		server_unzoom_window(wp->window);
+ 		wp = window_pane_find_left(wp);
+-	else if (args_has(self->args, 'R'))
++	} else if (args_has(self->args, 'R')) {
++		server_unzoom_window(wp->window);
+ 		wp = window_pane_find_right(wp);
+-	else if (args_has(self->args, 'U'))
++	} else if (args_has(self->args, 'U')) {
++		server_unzoom_window(wp->window);
+ 		wp = window_pane_find_up(wp);
+-	else if (args_has(self->args, 'D'))
++	} else if (args_has(self->args, 'D')) {
++		server_unzoom_window(wp->window);
+ 		wp = window_pane_find_down(wp);
++	}
+ 	if (wp == NULL)
+ 		return (CMD_RETURN_NORMAL);
+ 

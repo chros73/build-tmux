@@ -1,0 +1,28 @@
+commit 5532766b1935a8888fb60fb9a238f0849b96050b
+Author: Thomas Adam <thomas@xteddy.org>
+Date:   Tue Aug 13 21:56:41 2013 +0100
+
+    Renumber windows: Lookup lastw via window not index
+    
+    When calling 'movew -r' on a session to reorder the winlinks, ensure when
+    adding back in the information for the lastw stack that we look up the
+    winlink based on the window and not its index.
+    
+    Using the index doesn't make sense here because when comparing it to the old
+    set, it will never match since the winlink has been renumbered.
+    
+    Bug reported by Ben Boeckel.
+
+diff --git a/session.c b/session.c
+index 24e2e5e..bb742d8 100644
+--- a/session.c
++++ b/session.c
+@@ -615,7 +615,7 @@ session_renumber_windows(struct session *s)
+ 	memcpy(&old_lastw, &s->lastw, sizeof old_lastw);
+ 	TAILQ_INIT(&s->lastw);
+ 	TAILQ_FOREACH(wl, &old_lastw, sentry) {
+-		wl_new = winlink_find_by_index(&s->windows, wl->idx);
++		wl_new = winlink_find_by_window(&s->windows, wl->window);
+ 		if (wl_new != NULL)
+ 			TAILQ_INSERT_TAIL(&s->lastw, wl_new, sentry);
+ 	}

@@ -1,0 +1,31 @@
+commit 939f796f086cac17ad0558b36fa87c55a9cb1a22
+Author: Nicholas Marriott <nicholas.marriott@gmail.com>
+Date:   Thu Aug 1 23:40:44 2013 +0100
+
+    Don't leak formats if they are added multiple times.
+
+--- a/format.c
++++ b/format.c
+@@ -117,6 +117,7 @@
+ format_add(struct format_tree *ft, const char *key, const char *fmt, ...)
+ {
+ 	struct format_entry	*fe;
++	struct format_entry	*fe_now;
+ 	va_list			 ap;
+ 
+ 	fe = xmalloc(sizeof *fe);
+@@ -126,7 +127,13 @@
+ 	xvasprintf(&fe->value, fmt, ap);
+ 	va_end(ap);
+ 
+-	RB_INSERT(format_tree, ft, fe);
++	fe_now = RB_INSERT(format_tree, ft, fe);
++	if (fe_now != NULL) {
++		free(fe_now->value);
++		fe_now->value = fe->value;
++		free(fe->key);
++		free(fe);
++	}
+ }
+ 
+ /* Find a format entry. */

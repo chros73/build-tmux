@@ -1,0 +1,21 @@
+commit 9fb9f78e43337833825ae464a1c39ed6d78a2fdb
+Author: Nicholas Marriott <nicm@openbsd.org>
+Date:   Fri May 31 12:50:05 2013 +0000
+
+    Use u_char for the send-keys string to avoid mangling top-bit-set
+    characters when they are promoted to int and passed to
+    window_pane_key. Reported by Jacob Bang.
+
+diff --git a/cmd-send-keys.c b/cmd-send-keys.c
+index 3ee3dbe..dcd5f28 100644
+--- a/cmd-send-keys.c
++++ b/cmd-send-keys.c
+@@ -56,7 +56,7 @@ cmd_send_keys_exec(struct cmd *self, struct cmd_q *cmdq)
+ 	struct window_pane	*wp;
+ 	struct session		*s;
+ 	struct input_ctx	*ictx;
+-	const char		*str;
++	const u_char		*str;
+ 	int			 i, key;
+ 
+ 	if (cmd_find_pane(cmdq, args_get(args, 't'), &s, &wp) == NULL)

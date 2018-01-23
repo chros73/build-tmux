@@ -1,0 +1,23 @@
+commit 27364345bf68785af58131c47ef46ff081622537
+Author: Nicholas Marriott <nicholas.marriott@gmail.com>
+Date:   Thu Aug 1 23:39:09 2013 +0100
+
+    Don't add client formats when they are NULL.
+
+diff --git a/format.c b/format.c
+index 8c4c784..16ac53d 100644
+--- a/format.c
++++ b/format.c
+@@ -317,8 +317,10 @@
+ 	format_add(ft, "client_cwd", "%s", c->cwd);
+ 	format_add(ft, "client_height", "%u", c->tty.sy);
+ 	format_add(ft, "client_width", "%u", c->tty.sx);
+-	format_add(ft, "client_tty", "%s", c->tty.path);
+-	format_add(ft, "client_termname", "%s", c->tty.termname);
++	if (c->tty.path != NULL)
++		format_add(ft, "client_tty", "%s", c->tty.path);
++	if (c->tty.termname != NULL)
++		format_add(ft, "client_termname", "%s", c->tty.termname);
+ 
+ 	t = c->creation_time.tv_sec;
+ 	format_add(ft, "client_created", "%ld", (long) t);

@@ -1,0 +1,18 @@
+commit 2e2b8a95bd13dab848a61113c9974c9ac936f9d6
+Author: nicm <nicm>
+Date:   Fri Oct 23 23:46:36 2015 +0000
+
+    Pasting mouse escape sequences is unlikely, so skip them when working
+    out whether the user is pasting.
+
+--- a/server-client.c
++++ b/server-client.c
+@@ -597,7 +597,7 @@
+ 		m->valid = 0;
+ 
+ 	/* Treat everything as a regular key when pasting is detected. */
+-	if (server_client_assume_paste(s)) {
++	if (!KEYC_IS_MOUSE(key) && server_client_assume_paste(s)) {
+ 		if (!(c->flags & CLIENT_READONLY))
+ 			window_pane_key(wp, c, s, key, m);
+ 		return;

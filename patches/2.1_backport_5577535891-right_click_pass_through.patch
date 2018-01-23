@@ -1,0 +1,17 @@
+commit 5577535891e709f87f88311a1adef55dd6c6de85
+Author: nicm <nicm>
+Date:   Thu Nov 5 11:05:30 2015 +0000
+
+    Pass through right click if mouse is on, from Patrick Palka.
+
+--- a/key-bindings.c
++++ b/key-bindings.c
+@@ -226,7 +226,7 @@
+ 		"bind -n WheelDownStatus next-window",
+ 		"bind -n WheelUpStatus previous-window",
+ 		"bind -n MouseDrag1Pane if -Ft= '#{mouse_any_flag}' 'if -Ft= \"#{pane_in_mode}\" \"copy-mode -M\" \"send-keys -M\"' 'copy-mode -M'",
+-		"bind -n MouseDown3Pane select-pane -mt=",
++		"bind -n MouseDown3Pane if-shell -Ft= '#{mouse_any_flag}' 'select-pane -t=; send-keys -M' 'select-pane -mt='",
+ 		"bind -n WheelUpPane if-shell -Ft= '#{mouse_any_flag}' 'send-keys -M' 'if -Ft= \"#{pane_in_mode}\" \"send-keys -M\" \"copy-mode -et=\"'",
+ 	};
+ 	u_int		 i;

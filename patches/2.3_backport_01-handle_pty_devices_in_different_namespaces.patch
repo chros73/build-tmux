@@ -1,0 +1,288 @@
+From 9a448200d5c41cfb932457423be56b8b1400c518 Mon Sep 17 00:00:00 2001
+From: Christian Brauner <christian.brauner@ubuntu.com>
+Date: Tue, 4 Apr 2017 15:36:16 +0200
+Subject: [PATCH] handle pty devices in different namespaces
+
+This commit removes tmux dependency on the ttyname completely. This is also the
+planned upstream way of fixing this and has been suggested by Nicholas Marriott
+who's the upstream maintainer of tmux.
+
+Signed-off-by: Christian Brauner <christian.brauner@ubuntu.com>
+---
+ cmd-choose-client.c |  6 +++---
+ cmd-find.c          | 21 +++++++++++----------
+ cmd-list-clients.c  |  2 +-
+ format.c            |  4 ++--
+ server-client.c     | 17 ++++++++++++-----
+ tmux.1              |  4 +++-
+ tmux.h              |  2 +-
+ tty.c               | 12 ++++--------
+ 8 files changed, 37 insertions(+), 31 deletions(-)
+
+diff --git a/cmd-choose-client.c b/cmd-choose-client.c
+index b9a24be..6a8a30f 100644
+--- a/cmd-choose-client.c
++++ b/cmd-choose-client.c
+@@ -28,7 +28,7 @@
+  */
+ 
+ #define CHOOSE_CLIENT_TEMPLATE					\
+-	"#{client_tty}: #{session_name} "			\
++	"#{client_name}: #{session_name} "			\
+ 	"[#{client_width}x#{client_height} #{client_termname}]"	\
+ 	"#{?client_utf8, (utf8),}#{?client_readonly, (ro),} "	\
+ 	"(last used #{t:client_activity})"
+@@ -84,7 +84,7 @@ cmd_choose_client_exec(struct cmd *self, struct cmd_q *cmdq)
+ 
+ 	cur = idx = 0;
+ 	TAILQ_FOREACH(c1, &clients, entry) {
+-		if (c1->session == NULL || c1->tty.path == NULL)
++		if (c1->session == NULL)
+ 			continue;
+ 		if (c1 == cmdq->client)
+ 			cur = idx;
+@@ -96,7 +96,7 @@ cmd_choose_client_exec(struct cmd *self, struct cmd_q *cmdq)
+ 		format_add(cdata->ft, "line", "%u", idx);
+ 		format_defaults(cdata->ft, c1, NULL, NULL, NULL);
+ 
+-		cdata->command = cmd_template_replace(action, c1->tty.path, 1);
++		cdata->command = cmd_template_replace(action, c1->name, 1);
+ 
+ 		window_choose_add(wl->window->active, cdata);
+ 
+diff --git a/cmd-find.c b/cmd-find.c
+index f95c143..6423ae7 100644
+--- a/cmd-find.c
++++ b/cmd-find.c
+@@ -253,9 +253,9 @@ cmd_find_current_session_with_client(struct cmd_find_state *fs)
+ 	 * sessions to those containing that pane (we still use the current
+ 	 * window in the best session).
+ 	 */
+-	if (fs->cmdq != NULL && fs->cmdq->client->tty.path != NULL) {
++	if (fs->cmdq != NULL) {
+ 		RB_FOREACH(wp, window_pane_tree, &all_window_panes) {
+-			if (strcmp(wp->tty, fs->cmdq->client->tty.path) == 0)
++			if (strcmp(wp->tty, fs->cmdq->client->ttyname) == 0)
+ 				break;
+ 		}
+ 	} else
+@@ -1213,7 +1213,6 @@ cmd_find_client(struct cmd_q *cmdq, const char *target, int quiet)
+ 	struct client	*c;
+ 	char		*copy;
+ 	size_t		 size;
+-	const char	*path;
+ 
+ 	/* A NULL argument means the current client. */
+ 	if (cmdq != NULL && target == NULL) {
+@@ -1230,20 +1229,22 @@ cmd_find_client(struct cmd_q *cmdq, const char *target, int quiet)
+ 	if (size != 0 && copy[size - 1] == ':')
+ 		copy[size - 1] = '\0';
+ 
+-	/* Check path of each client. */
++	/* Check name and path of each client. */
+ 	TAILQ_FOREACH(c, &clients, entry) {
+-		if (c->session == NULL || c->tty.path == NULL)
++		if (c->session == NULL)
+ 			continue;
+-		path = c->tty.path;
+ 
+ 		/* Try for exact match. */
+-		if (strcmp(copy, path) == 0)
++		if (strcmp(copy, c->name) == 0)
+ 			break;
+ 
+-		/* Try without leading /dev. */
+-		if (strncmp(path, _PATH_DEV, (sizeof _PATH_DEV) - 1) != 0)
++		if (*c->ttyname == '\0')
+ 			continue;
+-		if (strcmp(copy, path + (sizeof _PATH_DEV) - 1) == 0)
++		if (strcmp(copy, c->ttyname) == 0)
++			break;
++		if (strncmp(c->ttyname, _PATH_DEV, (sizeof _PATH_DEV) - 1) != 0)
++			continue;
++		if (strcmp(copy, c->ttyname + (sizeof _PATH_DEV) - 1) == 0)
+ 			break;
+ 	}
+ 
+diff --git a/cmd-list-clients.c b/cmd-list-clients.c
+index f318ac1..5465f02 100644
+--- a/cmd-list-clients.c
++++ b/cmd-list-clients.c
+@@ -29,7 +29,7 @@
+  */
+ 
+ #define LIST_CLIENTS_TEMPLATE					\
+-	"#{client_tty}: #{session_name} "			\
++	"#{client_name}: #{session_name} "			\
+ 	"[#{client_width}x#{client_height} #{client_termname}]"	\
+ 	"#{?client_utf8, (utf8),} #{?client_readonly, (ro),}"
+ 
+diff --git a/format.c b/format.c
+index 20d3590..fd543b3 100644
+--- a/format.c
++++ b/format.c
+@@ -1057,11 +1057,11 @@ format_defaults_client(struct format_tree *ft, struct client *c)
+ 	if (ft->s == NULL)
+ 		ft->s = c->session;
+ 
++	format_add(ft, "client_name", "%s", c->name);
+ 	format_add(ft, "client_pid", "%ld", (long) c->pid);
+ 	format_add(ft, "client_height", "%u", c->tty.sy);
+ 	format_add(ft, "client_width", "%u", c->tty.sx);
+-	if (c->tty.path != NULL)
+-		format_add(ft, "client_tty", "%s", c->tty.path);
++	format_add(ft, "client_tty", "%s", c->ttyname);
+ 	if (c->tty.termname != NULL)
+ 		format_add(ft, "client_termname", "%s", c->tty.termname);
+ 	format_add(ft, "client_control_mode", "%d",
+diff --git a/server-client.c b/server-client.c
+index 5f1a58f..af3aa29 100644
+--- a/server-client.c
++++ b/server-client.c
+@@ -53,15 +53,12 @@ server_client_check_nested(struct client *c)
+ 	struct environ_entry	*envent;
+ 	struct window_pane	*wp;
+ 
+-	if (c->tty.path == NULL)
+-		return (0);
+-
+ 	envent = environ_find(c->environ, "TMUX");
+ 	if (envent == NULL || *envent->value == '\0')
+ 		return (0);
+ 
+ 	RB_FOREACH(wp, window_pane_tree, &all_window_panes) {
+-		if (strcmp(wp->tty, c->tty.path) == 0)
++		if (strcmp(wp->tty, c->ttyname) == 0)
+ 			return (1);
+ 	}
+ 	return (0);
+@@ -269,8 +266,10 @@ server_client_free(__unused int fd, __unused short events, void *arg)
+ 
+ 	log_debug("free client %p (%d references)", c, c->references);
+ 
+-	if (c->references == 0)
++	if (c->references == 0) {
++		free((void *)c->name);
+ 		free(c);
++	}
+ }
+ 
+ /* Detach a client. */
+@@ -1197,6 +1196,7 @@ server_client_dispatch_identify(struct client *c, struct imsg *imsg)
+ 	const char	*data, *home;
+ 	size_t	 	 datalen;
+ 	int		 flags;
++	char		*name;
+ 
+ 	if (c->flags & CLIENT_IDENTIFIED)
+ 		fatalx("out-of-order identify message");
+@@ -1266,6 +1266,13 @@ server_client_dispatch_identify(struct client *c, struct imsg *imsg)
+ 	c->fd = open(c->ttyname, O_RDWR|O_NOCTTY);
+ #endif
+ 
++	if (*c->ttyname != '\0')
++		name = xstrdup(c->ttyname);
++	else
++		xasprintf(&name, "client-%ld", (long)c->pid);
++	c->name = name;
++	log_debug("client %p name is %s", c, c->name);
++
+ 	if (c->flags & CLIENT_CONTROL) {
+ 		c->stdin_callback = control_callback;
+ 
+diff --git a/tmux.1 b/tmux.1
+index 88f36b8..ad783b4 100644
+--- a/tmux.1
++++ b/tmux.1
+@@ -369,7 +369,8 @@ or
+ These specify the client, session, window or pane which a command should affect.
+ .Pp
+ .Ar target-client
+-is the name of the
++should be the name of the client,
++typically the
+ .Xr pty 4
+ file to which the client is connected, for example either of
+ .Pa /dev/ttyp1
+@@ -3516,6 +3517,7 @@ The following variables are available, where appropriate:
+ .It Li "client_height" Ta "" Ta "Height of client"
+ .It Li "client_key_table" Ta "" Ta "Current key table"
+ .It Li "client_last_session" Ta "" Ta "Name of the client's last session"
++.It Li "client_name" Ta "" Ta "Name of client"
+ .It Li "client_pid" Ta "" Ta "PID of client process"
+ .It Li "client_prefix" Ta "" Ta "1 if prefix key has been pressed"
+ .It Li "client_readonly" Ta "" Ta "1 if client is readonly"
+diff --git a/tmux.h b/tmux.h
+index 1902039..abfbc63 100644
+--- a/tmux.h
++++ b/tmux.h
+@@ -1154,7 +1154,6 @@ LIST_HEAD(tty_terms, tty_term);
+ 
+ struct tty {
+ 	struct client	*client;
+-	char		*path;
+ 
+ 	u_int		 sx;
+ 	u_int		 sy;
+@@ -1238,6 +1237,7 @@ struct message_entry {
+ 
+ /* Client connection. */
+ struct client {
++	const char	*name;
+ 	struct tmuxpeer	*peer;
+ 
+ 	pid_t		 pid;
+diff --git a/tty.c b/tty.c
+index 062332c..75b993c 100644
+--- a/tty.c
++++ b/tty.c
+@@ -78,8 +78,6 @@ tty_create_log(void)
+ int
+ tty_init(struct tty *tty, struct client *c, int fd, char *term)
+ {
+-	char	*path;
+-
+ 	if (!isatty(fd))
+ 		return (-1);
+ 
+@@ -92,9 +90,6 @@ tty_init(struct tty *tty, struct client *c, int fd, char *term)
+ 	tty->fd = fd;
+ 	tty->client = c;
+ 
+-	if ((path = ttyname(fd)) == NULL)
+-		return (-1);
+-	tty->path = xstrdup(path);
+ 	tty->cstyle = 0;
+ 	tty->ccolour = xstrdup("");
+ 
+@@ -107,8 +102,9 @@ tty_init(struct tty *tty, struct client *c, int fd, char *term)
+ int
+ tty_resize(struct tty *tty)
+ {
+-	struct winsize	ws;
+-	u_int		sx, sy;
++	struct client	*c = tty->client;
++	struct winsize	 ws;
++	u_int		 sx, sy;
+ 
+ 	if (ioctl(tty->fd, TIOCGWINSZ, &ws) != -1) {
+ 		sx = ws.ws_col;
+@@ -177,6 +173,7 @@ void
+ tty_read_callback(__unused struct bufferevent *bufev, void *data)
+ {
+ 	struct tty	*tty = data;
++	struct client	*c = tty->client;
+ 
+ 	while (tty_keys_next(tty))
+ 		;
+@@ -337,7 +334,6 @@ tty_free(struct tty *tty)
+ 	tty_close(tty);
+ 
+ 	free(tty->ccolour);
+-	free(tty->path);
+ 	free(tty->termname);
+ }
+ 
+-- 
+2.11.0
+

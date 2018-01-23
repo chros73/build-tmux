@@ -1,0 +1,41 @@
+commit b0b5cad4968b09b805b475b41c0a9005f79c9563
+Author: Nicholas Marriott <nicholas.marriott@gmail.com>
+Date:   Thu Aug 1 23:38:35 2013 +0100
+
+    Grouped sessions were being leaked on destroy, correctly free them.
+
+diff --git a/server-fn.c b/server-fn.c
+index 86e2054..738a61d 100644
+--- a/server-fn.c
++++ b/server-fn.c
+@@ -398,14 +398,15 @@ void
+ server_destroy_session_group(struct session *s)
+ {
+ 	struct session_group	*sg;
++	struct session		*s1;
+ 
+ 	if ((sg = session_group_find(s)) == NULL)
+ 		server_destroy_session(s);
+ 	else {
+-		TAILQ_FOREACH(s, &sg->sessions, gentry)
++		TAILQ_FOREACH_SAFE(s, &sg->sessions, gentry, s1) {
+ 			server_destroy_session(s);
+-		TAILQ_REMOVE(&session_groups, sg, entry);
+-		free(sg);
++			session_destroy(s);
++		}
+ 	}
+ }
+ 
+diff --git a/session.c b/session.c
+index 74eb06a..24e2e5e 100644
+--- a/session.c
++++ b/session.c
+@@ -150,6 +150,7 @@ void
+ session_destroy(struct session *s)
+ {
+ 	struct winlink	*wl;
++
+ 	log_debug("session %s destroyed", s->name);
+ 
+ 	RB_REMOVE(sessions, &sessions, s);

@@ -1,0 +1,17 @@
+commit ddbc4a0f6ca0c6486a038ce91971212785d44744
+Author: nicm <nicm>
+Date:   Wed Oct 21 11:13:47 2015 +0000
+
+    By popular demand add a default binding for mouse wheel up to scroll
+    into history (if the mouse is, on of course).
+
+--- a/key-bindings.c
++++ b/key-bindings.c
+@@ -225,6 +225,7 @@
+ 		"bind -n MouseDown1Status select-window -t=",
+ 		"bind -n MouseDrag1Pane if -Ft= '#{mouse_any_flag}' 'if -Ft= \"#{pane_in_mode}\" \"copy-mode -M\" \"send-keys -M\"' 'copy-mode -M'",
+ 		"bind -n MouseDown3Pane select-pane -mt=",
++		"bind -n WheelUpPane if-shell -Ft= '#{mouse_any_flag}' 'send-keys -M' 'if -Ft= \"#{pane_in_mode}\" \"send-keys -M\" \"copy-mode -e\"'",
+ 	};
+ 	u_int		 i;
+ 	struct cmd_list	*cmdlist;

@@ -1,0 +1,39 @@
+commit 374e273df5f66e90e06f60617495446facfbd4f3
+Author: nicm <nicm>
+Date:   Thu Nov 19 22:46:46 2015 +0000
+
+    Only assume pasting with at least two characters, reduces problems for
+    people who can type ^B c very fast, or who are using tmux inside
+    something else that buffers.
+
+--- a/server-client.c
++++ b/server-client.c
+@@ -526,8 +526,16 @@
+ 		return (0);
+ 
+ 	timersub(&s->activity_time, &s->last_activity_time, &tv);
+-	if (tv.tv_sec == 0 && tv.tv_usec < t * 1000)
+-		return (1);
++	if (tv.tv_sec == 0 && tv.tv_usec < t * 1000) {
++		log_debug("session %s pasting (flag %d)", s->name,
++		    !!(s->flags & SESSION_PASTING));
++		if (s->flags & SESSION_PASTING)
++			return (1);
++		s->flags |= SESSION_PASTING;
++		return (0);
++	}
++	log_debug("session %s not pasting", s->name);
++	s->flags &= ~SESSION_PASTING;
+ 	return (0);
+ }
+ 
+--- a/tmux.h
++++ b/tmux.h
+@@ -998,6 +998,7 @@
+ 	struct options	 options;
+ 
+ #define SESSION_UNATTACHED 0x1	/* not attached to any clients */
++#define SESSION_PASTING 0x2
+ 	int		 flags;
+ 
+ 	u_int		 attached;

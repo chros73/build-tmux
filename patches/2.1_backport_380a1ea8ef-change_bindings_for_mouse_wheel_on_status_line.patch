@@ -1,0 +1,18 @@
+commit 380a1ea8ef8c4d47eda53214f0e283bdad857a6d
+Author: nicm <nicm>
+Date:   Mon Oct 26 23:06:18 2015 +0000
+
+    Default bindings for mouse wheel on status line to change window (like
+    we had before), from Patrick Palka.
+
+--- a/key-bindings.c
++++ b/key-bindings.c
+@@ -223,6 +223,8 @@
+ 		"bind -n MouseDown1Pane select-pane -t=\\; send-keys -M",
+ 		"bind -n MouseDrag1Border resize-pane -M",
+ 		"bind -n MouseDown1Status select-window -t=",
++		"bind -n WheelDownStatus next-window",
++		"bind -n WheelUpStatus previous-window",
+ 		"bind -n MouseDrag1Pane if -Ft= '#{mouse_any_flag}' 'if -Ft= \"#{pane_in_mode}\" \"copy-mode -M\" \"send-keys -M\"' 'copy-mode -M'",
+ 		"bind -n MouseDown3Pane select-pane -mt=",
+ 		"bind -n WheelUpPane if-shell -Ft= '#{mouse_any_flag}' 'send-keys -M' 'if -Ft= \"#{pane_in_mode}\" \"send-keys -M\" \"copy-mode -e\"'",

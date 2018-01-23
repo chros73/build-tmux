@@ -1,0 +1,36 @@
+commit c103f2fbcbeb82019b694bed6869942bc1cbe966
+Author: Thomas <thomas@xteddy.org>
+Date:   Tue Aug 20 10:37:55 2013 +0100
+
+    Clear window->flags when clearing winlinks
+    
+    When clearing WINLINK_ALERTFLAGS for all sessions, we must also, for that
+    window, clear the window->flags as well, otherwise sessions may well still
+    see flags for winlinks long since cleared.
+    
+    This therfore introduces WINDOW_ALERTFLAGS to help with this.
+
+diff --git a/tmux.h b/tmux.h
+index 6ab9861..0a17f72 100644
+--- a/tmux.h
++++ b/tmux.h
+@@ -1005,6 +1005,7 @@ struct window {
+ #define WINDOW_REDRAW 0x4
+ #define WINDOW_SILENCE 0x8
+ #define WINDOW_ZOOMED 0x10
++#define WINDOW_ALERTFLAGS (WINDOW_BELL|WINDOW_ACTIVITY|WINDOW_SILENCE)
+ 
+ 	struct options	 options;
+ 
+diff --git a/window.c b/window.c
+index 7678adc..7912bd3 100644
+--- a/window.c
++++ b/window.c
+@@ -1243,6 +1243,7 @@ winlink_clear_flags(struct winlink *wl)
+ 				continue;
+ 
+ 			wm->flags &= ~WINLINK_ALERTFLAGS;
++			wm->window->flags &= ~WINDOW_ALERTFLAGS;
+ 			server_status_session(s);
+ 		}
+ 	}

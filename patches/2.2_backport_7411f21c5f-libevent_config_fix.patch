@@ -1,0 +1,18 @@
+commit 7411f21c5f
+Author: nicm <nicm>
+Date:   May 20 2016
+
+    Use osdep_event_init() so that LIBEVENT_NOEPOLL and so on are set to
+    turn off broken event methods. Reported by Suraj N Kurapati.
+
+diff --git a/tmux.c b/tmux.c
+index aa6d331af..345f9e0c5 100644
+--- a/tmux.c
++++ b/tmux.c
+@@ -337,5 +337,5 @@ main(int argc, char **argv)
+ 	free(label);
+ 
+ 	/* Pass control to the client. */
+-	exit(client_main(event_init(), argc, argv, flags, shellcmd));
++	exit(client_main(osdep_event_init(), argc, argv, flags, shellcmd));
+ }

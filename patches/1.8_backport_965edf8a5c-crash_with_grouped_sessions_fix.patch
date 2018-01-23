@@ -1,0 +1,22 @@
+commit 965edf8a5c985d760b1e037be8182b353e9139c9
+Author: Nicholas Marriott <nicholas.marriott@gmail.com>
+Date:   Thu Aug 1 23:37:45 2013 +0100
+
+    Make recalculate_sizes() handle an empty window with no active pane. This can
+    happen when a window is in two sessions - it isn't destroyed immediately when
+    the pane goes away but is left until the last session is destroyed. Fixes
+    problems with grouped sessions reported by Daniel Ralston.
+
+diff --git a/resize.c b/resize.c
+index 5c365df..8d0bd27 100644
+--- a/resize.c
++++ b/resize.c
+@@ -92,7 +92,7 @@ recalculate_sizes(void)
+ 
+ 	for (i = 0; i < ARRAY_LENGTH(&windows); i++) {
+ 		w = ARRAY_ITEM(&windows, i);
+-		if (w == NULL)
++		if (w == NULL || w->active == NULL)
+ 			continue;
+ 		flag = options_get_number(&w->options, "aggressive-resize");
+ 
